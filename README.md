@@ -6,7 +6,7 @@ The game begins with a simple menu, giving the player the option to start the ga
 
 This project was created to further my understanding of game development using Python and Pygame. By working on this project, I was able to learn and improve my skills in sprite-based game mechanics, collision detection, and object-oriented programming.
 
-[Software Demo Video](http://youtube.link.goes.here)
+[Software Demo Video](https://www.youtube.com/watch?v=dNXPHZ-8MkI)
 
 # Development Environment
 
