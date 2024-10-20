@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 
 class Laser(pygame.sprite.Sprite):
@@ -10,11 +11,26 @@ class Laser(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.centerx = x
         self.rect.bottom = y
-        self.speed = -1
+        self.speed = -10
 
     def update(self):
         self.rect.y += self.speed
         if self.rect.bottom < 0:
+            self.kill()
+
+
+class Asteroid(pygame.sprite.Sprite):
+    def __init__(self, speed):
+        super().__init__()
+        self.image = pygame.image.load("assets/images/asteroid2.png")
+        self.rect = self.image.get_rect()
+        self.rect.x = random.randint(0, WIDTH - self.rect.width)
+        self.rect.y = 0
+        self.speed = speed
+
+    def update(self):
+        self.rect.y += self.speed
+        if self.rect.top > HEIGHT:
             self.kill()
 
 
@@ -27,26 +43,22 @@ class Player(pygame.sprite.Sprite):
             WIDTH // 2,
             HEIGHT - 50,
         )
-        self.shoot_delay = 250
+        self.shoot_delay = 100
         self.last_shot = pygame.time.get_ticks()
         self.all_sprites = all_sprites
         self.lasers = lasers
+        self.speed = 10
 
     def update(self):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.rect.x -= 1
+            self.rect.x -= self.speed
         if keys[pygame.K_RIGHT]:
-            self.rect.x += 1
+            self.rect.x += self.speed
         if self.rect.left < 0:
             self.rect.left = 0
         if self.rect.right > WIDTH:
             self.rect.right = WIDTH
-
-        if keys[pygame.K_SPACE]:
-            self.shoot()
-            pygame.mixer.music.load("assets/sounds/laser-gun.mp3")
-            pygame.mixer.music.play(0)
 
     def shoot(self):
         now = pygame.time.get_ticks()
@@ -120,22 +132,38 @@ def handle_menu_input(event):
             sys.exit()
 
 
-def handle_game_input(event):
-    global game_state
+def handle_game_input(event, player):
+    global game_state, laser_sound_playing
     if event.type == pygame.KEYDOWN:
         if event.key == pygame.K_ESCAPE:
             game_state = MENU
+            pygame.mixer.music.load("assets/sounds/menu-music.mp3")
             pygame.mixer.music.play(-1)
+            if laser_sound_playing:
+                pygame.mixer.Sound.stop(
+                    pygame.mixer.Sound("assets/sounds/laser-gun.mp3")
+                )
+                laser_sound_playing = False
+        elif event.key == pygame.K_SPACE:
+            player.shoot()
+            laser_sound = pygame.mixer.Sound("assets/sounds/laser-gun.mp3")
+            laser_sound.play()
+            laser_sound_playing = True
 
 
 def main_loop():
-    global game_state
+    global game_state, score, asteroid_spawn_delay
 
     all_sprites = pygame.sprite.Group()
     lasers = pygame.sprite.Group()
+    asteroids = pygame.sprite.Group()
 
     player = Player(all_sprites, lasers)
     all_sprites.add(player)
+
+    clock = pygame.time.Clock()
+    score = 0
+    asteroid_spawn_delay = 1000
 
     while True:
         for event in pygame.event.get():
@@ -149,9 +177,24 @@ def main_loop():
                     handle_menu_input(event)
 
             elif game_state == GAME:
-                handle_game_input(event)
+                handle_game_input(event, player)
+
+        if pygame.time.get_ticks() % asteroid_spawn_delay < 50:
+            speed = random.randint(5, 10)
+            asteroid = Asteroid(speed)
+            all_sprites.add(asteroid)
+            asteroids.add(asteroid)
 
         all_sprites.update()
+
+        for laser in lasers:
+            hits = pygame.sprite.spritecollide(laser, asteroids, True)
+            for hit in hits:
+                score += 1
+                laser.kill()
+
+        if score > 0 and score % 5 == 0:
+            asteroid_spawn_delay = max(200, asteroid_spawn_delay - 100)
 
         if game_state == MENU:
             draw_menu()
@@ -159,6 +202,8 @@ def main_loop():
             draw_game()
             all_sprites.draw(screen)
             pygame.display.flip()
+
+        clock.tick(60)
 
 
 if __name__ == "__main__":
@@ -178,5 +223,6 @@ if __name__ == "__main__":
     MENU = "menu"
     GAME = "game"
     game_state = MENU
+    laser_sound_playing = False
 
     main_loop()
